@@ -1,17 +1,21 @@
+!SWAPNAL SHAHIL 190122051
 PROGRAM main
     IMPLICIT NONE
-    real, parameter::pi = 3.14159265359
-    real*8 a(3,3), expo_mat(3,3)
-    integer i
-    
-    do i=1,3
-        read *, a(i, 1:3)
-    end do
-    call exponent_matrix(a,expo_mat,3)
-    do i=1,3
-        print *, expo_mat(i, 1:3)
-    end do
+    real, parameter::pi = acos(-1.0)
+    real*8 x0,y0,h,xfinal
+    x0 = 0.0
+    y0 = 0.0
+    h = 0.25
+    xfinal = 1.0
+    !call rk1(x0,y0,h,xfinal)
 
+    !call rk2(x0,y0,h,xfinal)
+
+    call rk4(x0,y0,h,xfinal)
+    
+    !OPEN(UNIT = outunit, FILE = 'input.txt', FORM = "formatted" )
+    !CLOSE(outunit)
+    
     
 END PROGRAM main
 
@@ -51,14 +55,14 @@ end subroutine carttopolar
 
 ! matrix multiplication (standard lib -> MATMUL(matrix_1, matrix_2))
 ! mat_mul -> matrix_a(n,m) matrix_b(m,l) product(n,l)
-subroutine mat_mul(matrix_a,matrix_b, product,n,m,l)
-    real*8 matrix_a(n,m), matrix_b(m,l), product(n,l)
+subroutine mat_mul(matrix_a,matrix_b, prod,n,m,l)
+    real*8 matrix_a(n,m), matrix_b(m,l), prod(n,l)
     integer i,j,k
     do i=1,n
         do j=1,l
-            product(i,j) = 0
+            prod(i,j) = 0
             do k=1,m
-                product(i,j) = product(i,j) + matrix_a(i,k) * matrix_b(k,j)
+                prod(i,j) = prod(i,j) + matrix_a(i,k) * matrix_b(k,j)
             end do
         end do
     end do
@@ -98,3 +102,130 @@ subroutine exponent_matrix(a,expo_mat,n)
         expo_mat = expo_mat + term
     end do
 end subroutine exponent_matrix
+
+! derivative
+! 1.2 : fdx(i) = ( -f(i-1)* 1/2 + f(i+1)*1/2)/dx**2
+! 1.4 : fdx(i) = (f(i-2)*1/12 - f(i-1)*2/3 + f(i+1)*2/3 - f(i+2)*1/12)/dx**2
+! 1.6 : fdx(i) = (-f(i-3)*1/60 + f(i-2)*3/20 - f(i-1)*3/4 + f(i+1)*3/4 - f(i+2)*3/20 + f(i+3)*1/60)/dx**2
+! 1.8 : fdx(i) = (f(i-4)*1/280 -f(i-3)*4/105 + f(i-2)*1/5 - f(i-1)*4/5 + f(i+1)*4/5 - f(i+2)*1/5 + f(i+3)*4/105 - f(i+4)*1/280)/dx**2
+! 2.2 : fdx(i) = (f(i-1)*1 - f(i)*2 + f(i+1))/dx**2
+! 2.4 : fdx(i) = (-f(i-2)*1/12 + f(i-1)*4/3 - f(i)*5/2 + f(i+1)*4/3 - f(i+2)*1/12)/dx**2
+! 2.6 : fdx(i) = (f(i-3)* 1/90 - f(i-2) * 3/20 + f(i-1)*3/2 - f(i) * 49/18 + f(i+1)*3/2 - f(i+2)*3/20 + f(i+3)*1/90)/dx**2
+! 2.8 : fdx(i) = (-f(i-4)*1/560 + f(i-3)*8/315 - f(i-2)*1/5 + f(i-1)*8/5 - f(i)*205/72 + f(i+1)*8/5 - f(i+2)*1/5 + f(i+3)*8/315 - f(i+4)*1/560)/dx**2
+! 3.2 : fdx(i) = (-f(i-2) * 1/2 + f(i-1) - f(i+1) + f(i+2)*1/2)/dx**2
+! 3.4 : fdx(i) = (f(i-3)*1/8 - f(i-2)*1 + f(i-1) * 13/8 - f(i+1) * 13/8 + f(i+2) - f(i+3) *1/8)/dx**2
+! 3.6 : fdx(i) = (-f(i-4)* 7/240 + f(i-3)*3/10 - f(i-2)*169/120 + f(i-1)*61/30 - f(i+1)*61/30 + f(i+2)*169/120 - f(i+3)*3/10 + f(i+4)*7/240)/dx**2;
+
+subroutine derivative(f,dx,fdx,n)
+    integer n
+    real*8 f(200), dx, fdx(200)
+    real*8 s
+    fdx =0
+    do i=4,n-3
+        fdx(i) = (f(i-3)* 1/90 - f(i-2) * 3/20 + f(i-1)*3/2 - f(i) * 49/18 + f(i+1)*3/2 - f(i+2)*3/20 + f(i+3)*1/90)/dx**2
+    end do
+    s =0
+    do i=1,200
+        s = s+f(i)*fdx(i)*dx
+    end do
+    print *,s 
+end subroutine derivative
+
+!Range Kutta methods
+!rk1(x0,y0,h,xfinal) xfinal is the point at which we need to find out.
+
+real(kind = 8) function func(x0,y0)
+    real*8 x0,y0
+    !change function here
+    func = x0 +2*y0
+end function func
+
+
+subroutine rk1(x0,y0,h,xfinal)
+    real(kind=8),external :: func
+    real*8 x0,y0,h,xfinal,x1,y1
+    integer i, n
+    n = int((xfinal-x0)/h + 0.5)
+    do i=1,n
+        x1 = x0 + h
+        y1 = y0 + h * func(x0,y0)
+        
+        x0 = x1
+        y0 = y1
+        print *, x1," ",y1
+    end do
+  
+end subroutine rk1
+
+subroutine rk2(x0,y0,h,xfinal)
+    real(kind=8),external :: func
+    real*8 x0,y0,h,xfinal,k1,k2
+    integer i, n
+    n = int((xfinal-x0)/h + 0.5)
+    do i=1,n
+        k1 = h * func(x0,y0)
+        k2 = h * func(x0+h,y0 +k1)
+        y0 = y0 + (k1 + k2)/2.0
+        x0 = x0 + h
+        print *, x0," ",y0
+    end do
+    
+end subroutine rk2
+
+subroutine rk4(x0,y0,h,xfinal)
+    real(kind=8),external :: func
+    real*8 x0,y0,h,xfinal,k1,k2,k3,k4
+    integer i, n
+    n = int((xfinal-x0)/h + 0.5)
+    do i=1,n
+        k1 = h * func(x0,y0)
+        k2 = h * func(x0+h/2.0,y0 + k1/2.0)
+        k3 = h * func(x0+h/2.0,y0 + k2/2.0)
+        k4 = h * func(x0+h,y0 + k3)
+        y0 = y0 + (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0
+        x0 = x0 + h
+        print *, x0," ",y0
+    end do
+    
+
+end subroutine rk4
+
+!cosine of matrix
+subroutine cos_subroutine(a,n)
+    real*8 a(2,2),pro(2,2),term(2,2),temp(2,2),prod(2,2)
+    integer i,n,x
+    n=2
+    x =1
+    do i=1,n
+        do j=1,n
+            if(i .eq. j) then
+                pro(i,j) =1
+                term(i,j) = 1
+                prod(i,j)=1
+            else
+                pro(i,j) = 0
+                term(i,j) = 0
+                prod(i,j) = 0
+            end if
+        end do
+    end do
+
+    call mat_mul(a,a,temp,2,2,2)
+    
+    
+    do i=1,5000,2
+        call mat_mul(term,temp, prod,2,2,2)
+        term = prod/(i * (i+1))
+        if(x .eq. 1)then
+            pro = pro - prod/(i * (i+1))
+            x =0
+        else
+            pro = pro + prod/(i * (i+1))
+            x = 1
+        end if
+    end do
+    do i=1,2
+            print *, pro(i,1:2)
+    end do
+
+end subroutine cos_subroutine

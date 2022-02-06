@@ -1,22 +1,50 @@
 !SWAPNAL SHAHIL 190122051
 PROGRAM main
     IMPLICIT NONE
-    real, parameter::pi = acos(-1.0)
-    real*8 x0,y0,h,xfinal
-    x0 = 0.0
-    y0 = 0.0
-    h = 0.25
-    xfinal = 1.0
-    !call rk1(x0,y0,h,xfinal)
+    real*8, parameter::pi = acos(-1.d0)
 
-    !call rk2(x0,y0,h,xfinal)
+    ! integer n,i
+    ! real*8 y(4), dt,t
+    ! t=0
+    ! n=4
+    ! dt = 0.1
+    ! y(1) =  1.0    !px
+    ! y(2) =  1.0    !py
+    ! y(3) =   1.0     !x
+    ! y(4) =   1.0     !y
 
-    call rk4(x0,y0,h,xfinal)
-    
+    ! do i=1,10
+    !     call rk4(y,n,dt,t)
+    !     print *, i*dt,"d(px)/dt", y(1), "d(py)/dt", y(2), "d(x)/dt", y(3), "d(y)/dt", y(4)
+    ! end do
+
+    integer n,i 
+    real*8 dk,dx,xi
+    complex*16 f(200), g(200)
+    n = 200
+    dx = (10.0 + 10.0)/n
+    dk = 2.0*pi/(n*dx)
+    do i=1,n 
+        xi = -10 + i*dx 
+        f(i) = exp(-xi**2)
+    end do
+     call dft(f,g,n,dk,dx)
+    do i=1,n 
+        print *,i, f(i), g(i)
+    end do
+
+    print *,
+    print*, "Now inverse"
+    print*,
+    f = g
+    g=0
+    call dft_inverse(f,g,n,dk,dx)
+    do i=1,n 
+        print *,i, f(i), g(i)
+    end do
+
     !OPEN(UNIT = outunit, FILE = 'input.txt', FORM = "formatted" )
     !CLOSE(outunit)
-    
-    
 END PROGRAM main
 
 !roots of quadratic equation
@@ -132,66 +160,132 @@ subroutine derivative(f,dx,fdx,n)
 end subroutine derivative
 
 !Range Kutta methods
-!rk1(x0,y0,h,xfinal) xfinal is the point at which we need to find out.
 
-real(kind = 8) function func(x0,y0)
-    real*8 x0,y0
-    !change function here
-    func = x0 +2*y0
-end function func
+subroutine fn_for_rk(temp, f, n,dt,t)
+    integer n
+    real*8 temp(n), f(n), dt, t
+    f(1) = 1.0*temp(3) / sqrt(temp(3)**2 + temp(4)**2)
+    f(2) = 1.0*temp(4) / sqrt(temp(4)**2 + temp(4)**2)
+    f(3) =  temp(1)
+    f(4) =  temp(2)
+    dt = dt
+    t = t
+end subroutine fn_for_rk
 
-
-subroutine rk1(x0,y0,h,xfinal)
-    real(kind=8),external :: func
-    real*8 x0,y0,h,xfinal,x1,y1
-    integer i, n
-    n = int((xfinal-x0)/h + 0.5)
-    do i=1,n
-        x1 = x0 + h
-        y1 = y0 + h * func(x0,y0)
-        
-        x0 = x1
-        y0 = y1
-        print *, x1," ",y1
-    end do
-  
+subroutine rk1(y, n, dt, t)
+    integer n
+    real*8 y(n),temp(n), dt, f(n),t
+    temp = y
+    call fn_for_rk(temp, f, n, dt,t)
+    y = y + dt*f
 end subroutine rk1
 
-subroutine rk2(x0,y0,h,xfinal)
-    real(kind=8),external :: func
-    real*8 x0,y0,h,xfinal,k1,k2
-    integer i, n
-    n = int((xfinal-x0)/h + 0.5)
-    do i=1,n
-        k1 = h * func(x0,y0)
-        k2 = h * func(x0+h,y0 +k1)
-        y0 = y0 + (k1 + k2)/2.0
-        x0 = x0 + h
-        print *, x0," ",y0
-    end do
+subroutine rk4(y, n, dt, t)
+    real*8 y(n), k1(n), k2(n), k3(n), k4(n), dt , temp(n),f(n),t
+    integer n
+    temp = y
+    call fn_for_rk(temp, f, n, dt, t)
+    k1 = f*dt
+    temp = y + k1/2.0
+    t = t + dt/2.0              !t = t + dt/2.0
+    call fn_for_rk(temp, f, n, dt, t)
+    k2 = f*dt
+    temp = y + k2/2.0
+    call fn_for_rk(temp, f, n, dt,t)
+    k3 = f*dt
+    temp = y + k3
+    t = t + dt/2.0              !t = t + dt/2.0 (t = t + h)
+    call fn_for_rk(temp, f, n, dt,t)
+    k4 = f*dt
+    y = y + (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0
     
-end subroutine rk2
-
-subroutine rk4(x0,y0,h,xfinal)
-    real(kind=8),external :: func
-    real*8 x0,y0,h,xfinal,k1,k2,k3,k4
-    integer i, n
-    n = int((xfinal-x0)/h + 0.5)
-    do i=1,n
-        k1 = h * func(x0,y0)
-        k2 = h * func(x0+h/2.0,y0 + k1/2.0)
-        k3 = h * func(x0+h/2.0,y0 + k2/2.0)
-        k4 = h * func(x0+h,y0 + k3)
-        y0 = y0 + (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0
-        x0 = x0 + h
-        print *, x0," ",y0
-    end do
-    
-
 end subroutine rk4
 
+subroutine dft(f, g, n, dk, dx)
+    complex*16 f(n), g(n),iota
+    integer k, n
+    real*8 dk, dx , xi,ki ,pi
+    pi = acos(-1.d0)
+    iota = (0.d0,1.d0)
+    do k=1,n
+        ki = -pi/dx + k*dk
+        g(k) = 0.0
+        do i=1,n
+            xi = -10.0 + i*dx
+            g(k) = g(k) + f(i)*exp(-iota*ki*xi)*dx
+        end do
+    end do
+    g = g * (1.0/sqrt(2.d0*pi))
+end subroutine dft
+
+subroutine dft_inverse(f,g,n,dk,dx)
+    complex*16 f(n), g(n),iota
+    integer k, n
+    real*8 dk, dx , xi,ki ,pi
+    pi = acos(-1.d0)
+    iota = (0.d0,1.d0)
+    do k=1,n
+        ki = -pi/dx + k*dk
+        g(k) = 0.0
+        do i=1,n
+            xi = -10.0 + i*dx
+            g(k) = g(k) + f(i)*exp(iota*ki*xi)*dk
+        end do
+    end do
+    g = g * (1.0/sqrt(2.d0*pi))
+
+end subroutine dft_inverse
+! subroutine rk1(x0,y0,h,xfinal)
+!     real(kind=8),external :: func
+!     real*8 x0,y0,h,xfinal,x1,y1
+!     integer i, n
+!     n = int((xfinal-x0)/h + 0.5)
+!     do i=1,n
+!         x1 = x0 + h
+!         y1 = y0 + h * func(x0,y0)
+        
+!         x0 = x1
+!         y0 = y1
+!         print *, x1," ",y1
+!     end do
+  
+! end subroutine rk1
+
+! subroutine rk2(x0,y0,h,xfinal)
+!     real(kind=8),external :: func
+!     real*8 x0,y0,h,xfinal,k1,k2
+!     integer i, n
+!     n = int((xfinal-x0)/h + 0.5)
+!     do i=1,n
+!         k1 = h * func(x0,y0)
+!         k2 = h * func(x0+h,y0 +k1)
+!         y0 = y0 + (k1 + k2)/2.0
+!         x0 = x0 + h
+!         print *, x0," ",y0
+!     end do
+    
+! end subroutine rk2
+
+! subroutine rk4(x0,y0,h,xfinal)
+!     real(kind=8),external :: func
+!     real*8 x0,y0,h,xfinal,k1,k2,k3,k4
+!     integer i, n
+!     n = int((xfinal-x0)/h + 0.5)
+!     do i=1,n
+!         k1 = h * func(x0,y0)
+!         k2 = h * func(x0+h/2.0,y0 + k1/2.0)
+!         k3 = h * func(x0+h/2.0,y0 + k2/2.0)
+!         k4 = h * func(x0+h,y0 + k3)
+!         y0 = y0 + (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0
+!         x0 = x0 + h
+!         print *, x0," ",y0
+!     end do
+    
+
+! end subroutine rk4
+
 !cosine of matrix
-subroutine cos_subroutine(a,n)
+subroutine cos_of_matrix(a,n)
     real*8 a(2,2),pro(2,2),term(2,2),temp(2,2),prod(2,2)
     integer i,n,x
     n=2
@@ -228,4 +322,4 @@ subroutine cos_subroutine(a,n)
             print *, pro(i,1:2)
     end do
 
-end subroutine cos_subroutine
+end subroutine cos_of_matrix

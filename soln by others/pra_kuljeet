@@ -1,0 +1,105 @@
+subroutine inv(a)
+  integer,parameter::n=2
+  real*8 a(n,n),w(n),work(20),info,ev(n,n),b(n,n)
+  integer i
+
+
+
+  b = a
+
+  call dsyev('V','U',n,a,n,w,work,20,info)
+
+  ev=0.d0
+  do i=1,n
+     ev(i,i)=1.d0/sqrt(w(i))
+  enddo
+
+  a=matmul(matmul(a,ev),transpose(a))   
+  
+ ! do i=1,n
+!     write(6,*)a(i,:)            !this is s^(-1/2)
+ ! enddo
+  
+ ! write(6,*)matmul(matmul(a,b),a)    !this should be 1.
+end
+
+
+
+
+program main
+  implicit none
+  integer,parameter::n=2
+  real*8 x(n,n),f(n,n),h(n,n),c(n,n),temp(n,n),phi(n,n,n,n),fp(n,n),cp(n,n),work(20),info,e(n),hp(n,n),T
+  integer*8 z,mu,nu,a,l,s,v,j,o,p
+  x(1,1) = 1.d0
+  x(1,2) = 0.4508d0
+  x(2,1) = 0.4508d0
+  x(2,2) = 1.d0
+  h(1,1) = -2.6527d0
+  h(2,2) = -1.7318d0
+  h(1,2) = -1.3472d0
+  h(2,1) = -1.3472d0
+  phi(1,1,1,1)=1.3072d0
+  phi(2,2,2,2)=0.7746d0
+  phi(1,1,2,2)=0.6057d0
+  phi(2,2,1,1)=0.6057d0
+  phi(2,1,1,1)=0.4373d0
+  phi(2,2,2,1)=0.3118d0
+  phi(1,2,2,2)=0.3118d0
+  phi(1,1,1,2)=0.4373d0
+
+  phi(1,2,1,1)=0.4373d0
+  phi(1,1,2,1)=0.4373d0
+  phi(2,1,2,2)=0.3118d0
+  phi(2,2,1,2)=0.3118d0
+  phi(2,1,2,1)=0.1773d0
+  phi(1,2,1,2)=0.1773d0
+  phi(1,2,2,1)=0.1773d0
+  phi(2,1,1,2)=0.1773d0
+  
+  c=0
+  temp=0
+  v=0
+  call inv(x)
+  write(6,*)x
+  do z=1,1000
+     j=0
+  do mu=1,2
+     do nu=1,2
+        f(mu,nu)=h(mu,nu)
+
+        do a=1,n/2
+           do l=1,2
+              do s=1,2
+                 f(mu,nu)=f(mu,nu)+c(l,a)*c(s,a)*(2*phi(mu,nu,l,s)-phi(mu,s,l,nu))
+              enddo
+           enddo
+        enddo
+     enddo
+  enddo
+   
+  fp=matmul(x,matmul(f,x))
+  
+  call dsyev('V','U',n,fp,n,e,work,20,info)
+  c=matmul(x,fp)
+  v=v+1
+  do o=1,2
+     do p=1,2
+        if(abs(c(o,p))-abs(temp(o,p)) .lt. 1e-8) then
+           j=j+1
+        endif
+     enddo
+  enddo
+  
+  if(j .eq. 4) then
+     goto 10
+  endif
+ 
+  temp=c
+  write(6,*)f,"gg",v
+enddo
+ 
+10 continue
+
+hp=matmul(transpose(c),matmul(h,c))
+end program main

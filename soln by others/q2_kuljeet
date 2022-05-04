@@ -1,0 +1,24 @@
+program main
+    implicit none
+    real*8 t(3), f(3), x(3)
+    integer*8 i
+
+    x(1) = 0.22*1.34
+    x(2) = 0.32*1.34
+    x(3) = 0.995
+    
+   
+    
+    f = x
+    t = x
+    
+    do i = 1,10000
+        t = (t*(x**2)*(2*i)*(2*i-1)*(2*i-1))/((4)*(i*i)*(2*i+1))
+        f = f + t   
+      enddo
+     
+    write(6,*) f
+    
+    
+    
+end program main

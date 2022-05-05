@@ -1,0 +1,106 @@
+subroutine expo(A,ea,n)
+    implicit none
+    integer i,j,n
+    complex*16 A(n,n),ea(n,n),t(n,n),Id(n,n),t2(n,n),zi    
+    real*8 dt
+    dt=0.1
+    zi=(0.d0,1.d0)
+    Id=0
+    do i=1,n
+        Id(i,i)=1
+    enddo  
+
+    t=Id     
+    ea=Id
+    j=1
+    do i=1,100
+       
+        t2 = matmul(t,A)/i
+        ea=ea+t2
+        t=t2
+    enddo
+end
+
+Program main
+    implicit none
+    integer, parameter::nb=50
+    integer nx,xst,i,m,n,k,t
+    real*8 pi,dt,dx,x,l,norm
+    complex*16 c(nb),a(nb,nb),v(nb,nb),zi,xt,ea(nb,nb),b(nb,nb),xy
+    
+    nx=400
+    xst=-10
+    l=20
+    pi=dacos(-1.d0)
+    zi=(0.d0,1.d0)
+    dx=l/nx
+    dt=0.1d0
+    t=200
+    do m=1,nb
+        do n=1,nb
+            v(m,n)=0
+            
+            do k=1,nx
+                x=xst+k*dx
+                v(m,n)=v(m,n)+(2/l)*sin(m*pi*(x-xst)/l)*(1.d0/2)*(x**2)*sin(n*pi*(x-xst)/l)*dx
+                
+            enddo
+        enddo
+    enddo
+    a = v
+    do m=1,nb
+        a(m,m)=a(m,m)+0.5d0*(pi**2)*(m**2)/l**2
+    enddo
+
+    norm=0
+    do k=1,nx
+       x=xst+k*dx
+       norm=norm+((1+x)*exp(-(x**2)/2))**2*dx
+    enddo
+    
+    do m=1,nb
+        c(m)=0
+        do k=1,nx
+            x=xst+k*dx
+            c(m)=c(m)+sqrt(2/l)*sin(m*pi*(x-xst)/l)*(1+x)*exp(-(x**2)/2)*dx*(sqrt(norm))
+        enddo
+    enddo
+
+     do m=1,nb
+        do n=1,nb
+            ea(m,n)=-1*dt*a(m,n)
+        enddo 
+    enddo 
+    
+   call expo(ea,b,nb)
+
+    
+    do i=1,t
+        c=matmul(b,c)
+        norm=sum(conjg(c)*c)
+        c=c/sqrt(norm)
+        xt=sum(conjg(c)*matmul(a,c))
+        xy=sum(conjg(c)*matmul(matmul(a,a),c))
+        write(7,*)i*dt, real(xt), real(xy)
+
+        if(i==0) then
+        write(6,*)i, xt ,xy
+
+        elseif(i==2) then
+	write(6,*)i, xt, xy 
+
+        elseif(i==5) then
+	write(6,*)i, xt, xy
+
+        elseif(i==10) then
+        write(6,*)i, xt, xy
+    
+        elseif(i==15) then
+        write(6,*)i, xt ,xy
+     
+        elseif(i==20) then
+        write(6,*)i, xt, xy
+        endif
+    enddo
+    
+end program
